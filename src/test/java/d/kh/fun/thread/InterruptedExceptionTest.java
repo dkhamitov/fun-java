@@ -11,16 +11,14 @@ import java.util.concurrent.LinkedBlockingQueue;
 public class InterruptedExceptionTest {
     @Test
     public void interrupt_while_waiting() throws InterruptedException {
-        LinkedBlockingQueue<Object> queue = new LinkedBlockingQueue<>();
         Thread reader = new Thread(() -> {
             try {
-                queue.take();
+                new LinkedBlockingQueue<>().take();
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
         });
         reader.start();
-
         reader.interrupt();
     }
 }
