@@ -15,3 +15,7 @@ subprojects {
         maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
     }
 }
+
+task wrapper(type: Wrapper) {
+    gradleVersion = '3.5'
+}
