@@ -1,13 +1,12 @@
 package d.kh.fun.thread;
 
-
 import org.junit.Test;
 
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.CountDownLatch;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
-import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
 /**
  * Created by khamitovdm on 11/01/2017.
@@ -16,12 +15,12 @@ public class InterruptedExceptionTest {
     @Test
     public void interrupt_while_waiting() throws InterruptedException {
         //given:
-        BlockingQueue<Object> signals = new LinkedBlockingQueue<>();
+        CountDownLatch latch = new CountDownLatch(1);
         Thread hangingThread = new Thread(() -> {
             try {
-                new LinkedBlockingQueue<>().take();
+                latch.await();
             } catch (InterruptedException e) {
-                signals.add(new Object());
+                latch.countDown();
             }
         }, "hanging-thread");
         hangingThread.start();
@@ -30,6 +29,7 @@ public class InterruptedExceptionTest {
         hangingThread.interrupt();
 
         //then:
-        assertNotNull("hangingThread should have been interrupted", signals.poll(100, MILLISECONDS));
+        assertTrue("hangingThread should have been interrupted", latch.await(200, MILLISECONDS));
+        assertFalse(hangingThread.isInterrupted());
     }
 }
