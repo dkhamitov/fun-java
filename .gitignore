@@ -1,5 +1,6 @@
 .idea
 .gradle
+out
 /build/
 gradle-app.setting
 !gradle-wrapper.jar
