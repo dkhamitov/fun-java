@@ -1,5 +1,8 @@
 apply plugin: 'java'
 apply plugin: 'groovy'
+apply plugin: 'application'
+
+sourceCompatibility = 11
 
 repositories {
     jcenter()
@@ -16,4 +19,9 @@ subprojects {
     tasks.withType(Test) {
         maxParallelForks = Runtime.runtime.availableProcessors().intdiv(2) ?: 1
     }
+}
+
+application {
+    mainClassName = "d.kh.fun.jol.MyTradeJolAnalysis"
+    applicationDefaultJvmArgs = ["-Djdk.attach.allowAttachSelf", "-Djol.tryWithSudo=true", "-XX:-UseCompressedOops"]
 }
