@@ -1,10 +1,14 @@
 package d.kh.fun.collection;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.Random;
 import java.util.stream.IntStream;
 
+import static java.util.stream.Collectors.counting;
+import static java.util.stream.Collectors.groupingBy;
 import static java.util.stream.Collectors.toCollection;
 
 public class HashMapPoissonTest {
@@ -19,7 +23,7 @@ public class HashMapPoissonTest {
         var letters = IntStream.concat(AZ, az).mapToObj(Character::toString).collect(toCollection(ArrayList::new));
         var rnd = new Random();
 
-        var n = 100_000;
+        var n = 1 << 18;
         var map = new HashMap<String, Object>(n);
         for (var i = 0; i < n; i++) {
             var key = new StringBuilder();
@@ -27,6 +31,26 @@ public class HashMapPoissonTest {
                 key.append(letters.get(rnd.nextInt(letters.size())));
             }
             map.put(key.toString(), null);
+        }
+        var table = (Map.Entry<?, ?>[]) readField(map, "table");
+        var distr = Arrays.stream(table).collect(groupingBy(bucket -> {
+            var i = 0;
+            while (bucket != null) {
+                i++;
+                bucket = (Map.Entry<?, ?>) readField(bucket, "next");
+            }
+            return i;
+        }, counting()));
+        System.out.println(distr);
+    }
+
+    private static Object readField(Object obj, String name) {
+        try {
+            var field = obj.getClass().getDeclaredField(name);
+            field.setAccessible(true);
+            return field.get(obj);
+        } catch (NoSuchFieldException | IllegalAccessException e) {
+            throw new IllegalArgumentException(e);
         }
     }
 }
