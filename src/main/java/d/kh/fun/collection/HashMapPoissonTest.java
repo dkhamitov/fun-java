@@ -23,25 +23,31 @@ public class HashMapPoissonTest {
         var letters = IntStream.concat(AZ, az).mapToObj(Character::toString).collect(toCollection(ArrayList::new));
         var rnd = new Random();
 
-        var n = 1 << 18;
-        var map = new HashMap<String, Object>(n);
-        for (var i = 0; i < n; i++) {
-            var key = new StringBuilder();
-            for (var j = 0; j < 8; j++) {
-                key.append(letters.get(rnd.nextInt(letters.size())));
+        var cap = 1 << 19;
+        var lowLen = 5;
+        var highLen = 15;
+
+        for (var k = 0; k < 10; k++) {
+            var map = new HashMap<String, Object>(cap);
+            for (var i = 0; i < cap * 0.75; i++) {
+                var keyLen = lowLen + rnd.nextInt(highLen - lowLen);
+                var key = new StringBuilder(keyLen);
+                for (var j = 0; j < keyLen; j++) {
+                    key.append(letters.get(rnd.nextInt(letters.size())));
+                }
+                map.put(key.toString(), null);
             }
-            map.put(key.toString(), null);
+            var table = (Map.Entry<?, ?>[]) readField(map, "table");
+            var distr = Arrays.stream(table).collect(groupingBy(bucket -> {
+                var i = 0;
+                while (bucket != null) {
+                    i++;
+                    bucket = (Map.Entry<?, ?>) readField(bucket, "next");
+                }
+                return i;
+            }, counting()));
+            System.out.println(distr);
         }
-        var table = (Map.Entry<?, ?>[]) readField(map, "table");
-        var distr = Arrays.stream(table).collect(groupingBy(bucket -> {
-            var i = 0;
-            while (bucket != null) {
-                i++;
-                bucket = (Map.Entry<?, ?>) readField(bucket, "next");
-            }
-            return i;
-        }, counting()));
-        System.out.println(distr);
     }
 
     private static Object readField(Object obj, String name) {
