@@ -3,12 +3,14 @@ package d.kh.fun.collection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Map;
 import java.util.Random;
+import java.util.function.Supplier;
 import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import static java.util.stream.Collectors.counting;
 import static java.util.stream.Collectors.groupingBy;
+import static java.util.stream.Collectors.joining;
 import static java.util.stream.Collectors.toCollection;
 
 public class HashMapPoissonTest {
@@ -26,37 +28,60 @@ public class HashMapPoissonTest {
         var cap = 1 << 19;
         var lowLen = 5;
         var highLen = 15;
+        var rates = new double[]{0.5, 0.75};
+        int iters = 5;
 
-        for (var k = 0; k < 10; k++) {
-            var map = new HashMap<String, Object>(cap);
-            for (var i = 0; i < cap * 0.75; i++) {
-                var keyLen = lowLen + rnd.nextInt(highLen - lowLen);
-                var key = new StringBuilder(keyLen);
-                for (var j = 0; j < keyLen; j++) {
-                    key.append(letters.get(rnd.nextInt(letters.size())));
-                }
-                map.put(key.toString(), null);
-            }
-            var table = (Map.Entry<?, ?>[]) readField(map, "table");
-            var distr = Arrays.stream(table).collect(groupingBy(bucket -> {
-                var i = 0;
-                while (bucket != null) {
-                    i++;
-                    bucket = (Map.Entry<?, ?>) readField(bucket, "next");
-                }
-                return i;
-            }, counting()));
-            System.out.println(distr);
+        for (var rate : rates) {
+            System.out.println("Testing with " + rate + " keys on average per bucket");
+            times(iters, () -> {
+                var map = new HashMap<String, Object>(cap);
+                times((int) (cap * rate), () -> {
+                    var keyLen = lowLen + rnd.nextInt(highLen - lowLen);
+                    var key = times(keyLen, () -> rnd.nextInt(letters.size() - 1))
+                            .map(letters::get)
+                            .collect(joining());
+                    map.put(key, null);
+                });
+                var table = (Object[]) readField(map, "table");
+                var distr = Arrays.stream(table).collect(groupingBy(bucket -> {
+                    var bucketSize = 0;
+                    while (bucket != null) {
+                        bucketSize++;
+                        bucket = readField(bucket, "next");
+                    }
+                    return bucketSize;
+                }, counting()));
+                System.out.println(distr);
+            });
         }
     }
 
     private static Object readField(Object obj, String name) {
-        try {
-            var field = obj.getClass().getDeclaredField(name);
-            field.setAccessible(true);
-            return field.get(obj);
-        } catch (NoSuchFieldException | IllegalAccessException e) {
-            throw new IllegalArgumentException(e);
+        var type = obj.getClass();
+        while (type != null) {
+            try {
+                var fields = type.getDeclaredFields();
+                var field = Arrays.stream(fields).filter(f -> f.getName().equals(name)).findFirst();
+                if (field.isPresent()) {
+                    field.get().setAccessible(true);
+                    return field.get().get(obj);
+                } else {
+                    type = type.getSuperclass();
+                }
+            } catch (IllegalAccessException e) {
+                throw new IllegalArgumentException(e);
+            }
         }
+        throw new IllegalArgumentException("Field not found");
+    }
+
+    private static void times(int n, Runnable r) {
+        for (var i = 0; i < n; i++) {
+            r.run();
+        }
+    }
+
+    private static <T> Stream<T> times(int n, Supplier<T> sup) {
+        return IntStream.range(0, n).mapToObj(in -> sup.get());
     }
 }
